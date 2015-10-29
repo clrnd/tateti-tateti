@@ -2,19 +2,47 @@ module Main where
 
 import UI.NCurses
 
+import Types
+
 
 main :: IO ()
 main = runCurses $ do
     setEcho False
     w <- newWindow 23 23 1 1
+
+    let game = Game { gPlayer=X
+                    , gBoardState=defaultBoard (defaultBoard Nothing)
+                    , gMode = Free }
+
     updateWindow w $ do
-        drawBoard (0, 0) 7
-        drawBoard (1, 1) 1
+        -- main cross
+        drawCross (0, 0) 7
+
+        -- top row crosses
+        drawCross (1, 1) 1
+        drawCross (1, 1 + 8) 1
+        drawCross (1, 1 + 8 + 8) 1
+
+        -- middle row crosses
+        drawCross (1 + 8, 1) 1
+        drawCross (1 + 8, 1 + 8) 1
+        drawCross (1 + 8, 1 + 8 + 8) 1
+
+        -- bottom row crosses
+        drawCross (1 + 8 + 8, 1) 1
+        drawCross (1 + 8 + 8, 1 + 8) 1
+        drawCross (1 + 8 + 8, 1 + 8 + 8) 1
+
+        drawBoard game
     render
     moveAround w
 
-drawBoard :: (Integer, Integer) -> Integer -> Update ()
-drawBoard (y, x) cellsize = do
+drawBoard :: Game -> Update ()
+drawBoard Game{gBoardState=gbs} = do
+    return ()
+
+drawCross :: (Integer, Integer) -> Integer -> Update ()
+drawCross (y, x) cellsize = do
     moveCursor (cellsize + y) x
     drawLineH (Just glyphLineH) (cellsize * 3 + 2)
     moveCursor (cellsize + y + cellsize + 1) x
