@@ -46,29 +46,5 @@ defaultBoard a = BoardState
     , _bsPosition=MM
     , _bsWinner=Nothing }
 
-isTop :: BoardPosition -> Bool
-isTop TL = True
-isTop TM = True
-isTop TR = True
-isTop _ = False
-
-isRight :: BoardPosition -> Bool
-isRight TR = True
-isRight MR = True
-isRight BR = True
-isRight _ = False
-
-isBottom :: BoardPosition -> Bool
-isBottom BL = True
-isBottom BM = True
-isBottom BR = True
-isBottom _ = False
-
-isLeft :: BoardPosition -> Bool
-isLeft TL = True
-isLeft ML = True
-isLeft BL = True
-isLeft _ = False
-
 $(makeLenses ''GameState)
 $(makeLenses ''BoardState)
