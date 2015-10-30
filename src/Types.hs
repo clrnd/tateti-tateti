@@ -1,8 +1,23 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Types where
+
+import UI.NCurses
+import Lens.Simple
+import Control.Monad.State.Lazy
+
+
+type Game a = StateT GameState Curses a
 
 data Player = X
             | O
             deriving Show
+
+data Input = U | R | D | L
+           | Select | Quit
+           deriving Show
+
+data Mode = Free | Fixed deriving Show
 
 data BoardPosition = TL | TM | TR
                    | ML | MM | MR
@@ -10,25 +25,50 @@ data BoardPosition = TL | TM | TR
                    deriving Show
 
 data BoardState t = BoardState
-    { bsTL :: t , bsTM :: t , bsTR :: t
-    , bsML :: t , bsMM :: t , bsMR :: t
-    , bsBL :: t , bsBM :: t , bsBR :: t
-    , bsPosition :: BoardPosition
-    , bsWinner :: Maybe Player
+    { _bsTL :: t , _bsTM :: t , _bsTR :: t
+    , _bsML :: t , _bsMM :: t , _bsMR :: t
+    , _bsBL :: t , _bsBM :: t , _bsBR :: t
+    , _bsPosition :: BoardPosition
+    , _bsWinner :: Maybe Player
     } deriving Show
 
-data Mode = Free | Fixed deriving Show
-
-data Game = Game
-    { gPlayer :: Player
-    , gBoardState :: BoardState (BoardState (Maybe Player))
-    , gMode :: Mode
+data GameState = GameState
+    { _gPlayer :: Player
+    , _gBoardState :: BoardState (BoardState (Maybe Player))
+    , _gMode :: Mode
     } deriving Show
 
 defaultBoard :: a -> BoardState a
 defaultBoard a = BoardState
-    { bsTL=a , bsTM=a , bsTR=a
-    , bsML=a , bsMM=a , bsMR=a
-    , bsBL=a , bsBM=a , bsBR=a
-    , bsPosition=MM
-    , bsWinner=Nothing }
+    { _bsTL=a , _bsTM=a , _bsTR=a
+    , _bsML=a , _bsMM=a , _bsMR=a
+    , _bsBL=a , _bsBM=a , _bsBR=a
+    , _bsPosition=MM
+    , _bsWinner=Nothing }
+
+isTop :: BoardPosition -> Bool
+isTop TL = True
+isTop TM = True
+isTop TR = True
+isTop _ = False
+
+isRight :: BoardPosition -> Bool
+isRight TR = True
+isRight MR = True
+isRight BR = True
+isRight _ = False
+
+isBottom :: BoardPosition -> Bool
+isBottom BL = True
+isBottom BM = True
+isBottom BR = True
+isBottom _ = False
+
+isLeft :: BoardPosition -> Bool
+isLeft TL = True
+isLeft ML = True
+isLeft BL = True
+isLeft _ = False
+
+$(makeLenses ''GameState)
+$(makeLenses ''BoardState)
