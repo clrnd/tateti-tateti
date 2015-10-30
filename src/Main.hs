@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Control.Monad.Trans
@@ -30,6 +31,10 @@ mainLoop :: Window -> Game ()
 mainLoop w = do
 
     input <- parseInput w
+    movePLayer input
+
+    bs <- use gBoardState
+    drawPlayer bs
     --liftIO $ print input
 
     mainLoop w
@@ -48,3 +53,55 @@ parseInput w = do
                 KeyLeftArrow -> return L
                 _ -> parseInput w
         _ -> parseInput w
+
+
+movePlayer :: Input -> Game ()
+movePlayer input = do
+    use gMode >>= \case
+        Free -> do
+            current <- use $ gBoardState . bsPosition
+            let newPos = movePlayer' input current
+            return ()
+        Fixed -> return ()
+  where
+    movePlayer' U TL = TL
+    movePlayer' U TM = TM
+    movePlayer' U TR = TR
+    movePlayer' U ML = TL
+    movePlayer' U MM = TM
+    movePlayer' U MR = TR
+    movePlayer' U BL = ML
+    movePlayer' U BM = MM
+    movePlayer' U BR = MR
+
+    movePlayer' R TL = TM
+    movePlayer' R TM = TL
+    movePlayer' R TR = TR
+    movePlayer' R ML = MM
+    movePlayer' R MM = MR
+    movePlayer' R MR = MR
+    movePlayer' R BL = BM
+    movePlayer' R BM = BR
+    movePlayer' R BR = BR
+
+    movePlayer' D TL = ML
+    movePlayer' D TM = MM
+    movePlayer' D TR = MR
+    movePlayer' D ML = BL
+    movePlayer' D MM = BM
+    movePlayer' D MR = BR
+    movePlayer' D BL = BL
+    movePlayer' D BM = BM
+    movePlayer' D BR = BR
+
+    movePlayer' L TL = TL
+    movePlayer' L TM = TL
+    movePlayer' L TR = TM
+    movePlayer' L ML = ML
+    movePlayer' L MM = ML
+    movePlayer' L MR = MM
+    movePlayer' L BL = BL
+    movePlayer' L BM = BL
+    movePlayer' L BR = BM
+
+    movePlayer' _ _ = undefined

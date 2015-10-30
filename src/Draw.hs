@@ -20,15 +20,6 @@ drawCross (y, x) cellsize = do
     drawLineV (Just glyphLineV) (cellsize * 3 + 2)
 
 
-movePlayer :: Input -> Game ()
-movePlayer input = do
-    use gMode >>= \case
-        Free -> do
-            current <- use $ gBoardState . bsPosition
-            --let new = movePlayer' input current
-            return ()
-        Fixed -> return ()
-
 drawCrosses :: Update ()
 drawCrosses = do
     -- main cross
@@ -48,3 +39,6 @@ drawCrosses = do
     drawCross (1 + 8 + 8, 1) 1
     drawCross (1 + 8 + 8, 1 + 8) 1
     drawCross (1 + 8 + 8, 1 + 8 + 8) 1
+
+drawPlayer :: BoardState -> Update ()
+drawPlayer bs = undefined
