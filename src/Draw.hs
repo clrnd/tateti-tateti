@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Draw where
 
+import Data.Monoid
 import Lens.Simple
 import UI.NCurses
 
@@ -40,5 +41,33 @@ drawCrosses = do
     drawCross (1 + 8 + 8, 1 + 8) 1
     drawCross (1 + 8 + 8, 1 + 8 + 8) 1
 
-drawPlayer :: BoardState -> Update ()
-drawPlayer bs = undefined
+drawPlayer :: GameState -> Update ()
+drawPlayer gs =
+    let outer_s = gs ^. gBoardState
+        inner_l = case outer_s ^. bsPosition of
+                    TL -> bsTL
+                    TM -> bsTM
+                    TR -> bsTR
+                    ML -> bsML
+                    MM -> bsMM
+                    MR -> bsMR
+                    BL -> bsBL
+                    BM -> bsBM
+                    BR -> bsBR
+        inner_p = getPos 1 $ outer_s ^. inner_l . bsPosition
+        outer_p = getPos 8 $ outer_s ^. bsPosition
+    in
+    uncurry moveCursor $ outer_p `plusTuple` inner_p
+  where
+    getPos _ TL = (0, 0)
+    getPos n TM = (0, n)
+    getPos n TR = (0, n + n)
+    getPos n ML = (n, 0)
+    getPos n MM = (n, n)
+    getPos n MR = (n, n + n)
+    getPos n BL = (n + n, 0)
+    getPos n BM = (n + n, n)
+    getPos n BR = (n + n, n + n)
+
+plusTuple :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
+plusTuple (a, b) (a', b') = (a + a', b + b')

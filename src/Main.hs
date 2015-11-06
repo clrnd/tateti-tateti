@@ -31,10 +31,11 @@ mainLoop :: Window -> Game ()
 mainLoop w = do
 
     input <- parseInput w
-    movePLayer input
+    movePlayer input
 
-    bs <- use gBoardState
-    drawPlayer bs
+    gs <- get
+    lift $ updateWindow w $ drawPlayer gs
+    lift $ render
     --liftIO $ print input
 
     mainLoop w
@@ -61,6 +62,7 @@ movePlayer input = do
         Free -> do
             current <- use $ gBoardState . bsPosition
             let newPos = movePlayer' input current
+            gBoardState . bsPosition .= newPos
             return ()
         Fixed -> return ()
   where
