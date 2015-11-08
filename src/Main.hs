@@ -77,7 +77,7 @@ movePlayer input = do
     movePlayer' U BR = MR
 
     movePlayer' R TL = TM
-    movePlayer' R TM = TL
+    movePlayer' R TM = TR
     movePlayer' R TR = TR
     movePlayer' R ML = MM
     movePlayer' R MM = MR
