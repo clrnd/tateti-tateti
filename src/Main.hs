@@ -2,7 +2,7 @@
 module Main where
 
 import Control.Monad.Trans
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Lens.Simple
 import UI.NCurses
 
@@ -11,34 +11,63 @@ import Draw
 
 
 main :: IO ()
-main = do
+main =
     let game = GameState { _gPlayer=X
                          , _gBoardState=defaultBoard (
                                          defaultBoard Nothing)
-                         , _gMode = Free }
-    _ <- runCurses . flip runStateT game $ do
+                         , _gMode = Free
+                         , _gQuit = False }
+    in
+    void . runCurses . flip runStateT game $ do
         lift $ setEcho False
-        w <- lift $ newWindow 23 23 1 1
+        -- main window
+        w1 <- lift $ newWindow 23 23 1 1
+        -- message window
+        w2 <- lift $ newWindow 3 15 (24 - 2) 24
 
-        lift $ updateWindow w $ drawCrosses
+        lift $ updateWindow w1 $ drawCrosses
         lift $ render
 
-        mainLoop w
-    return ()
+        mainLoop w1 w2
+
+        -- cleaning up
+        lift $ closeWindow w1
+        lift $ closeWindow w2
 
 
-mainLoop :: Window -> Game ()
-mainLoop w = do
-
-    input <- parseInput w
-    movePlayer input
-
+mainLoop :: Window -> Window -> Game ()
+mainLoop w1 w2 = do
     gs <- get
-    lift $ updateWindow w $ drawPlayer gs
-    lift $ render
-    --liftIO $ print input
+    lift $ updateWindow w2 $ drawMessages gs
+    lift $ updateWindow w1 $ drawCursor gs
 
-    mainLoop w
+    lift $ render
+
+    parseInput w1 >>= \case
+        Movement m -> movePlayer m
+        Select -> actionPlayer
+        Quit -> gQuit .= True
+
+    if gs ^. gQuit
+        then return ()
+        else mainLoop w1 w2
+
+
+actionPlayer :: Game ()
+actionPlayer = do
+    use gMode >>= \case
+        Free -> gMode .= Fixed
+        Fixed -> do
+            pl <- use gPlayer
+
+            -- check empty space
+            pos <- use $ gBoardState . bsPosition
+
+            pos' <- use $ gBoardState . (positionToLens pos) . bsPosition
+
+            use (gBoardState . (positionToLens pos) . (positionToLens pos')) >>= \case
+                Nothing -> gBoardState . (positionToLens pos) . (positionToLens pos') .= Just pl
+                Just _ -> return ()
 
 
 parseInput :: Window -> Game Input
@@ -46,64 +75,35 @@ parseInput w = do
     ev <- lift $ getEvent w Nothing
     case ev of
         Just (EventCharacter 'q') -> return Quit
+        Just (EventCharacter 'Q') -> return Quit
+        Just (EventCharacter ' ') -> return Select
         Just (EventSpecialKey k) ->
             case k of
-                KeyUpArrow -> return U
-                KeyRightArrow -> return R
-                KeyDownArrow -> return D
-                KeyLeftArrow -> return L
+                KeyUpArrow -> return $ Movement KUp
+                KeyRightArrow -> return $ Movement KRight
+                KeyDownArrow -> return $ Movement KDown
+                KeyLeftArrow -> return $ Movement KLeft
                 _ -> parseInput w
         _ -> parseInput w
 
 
-movePlayer :: Input -> Game ()
+movePlayer :: Movement -> Game ()
 movePlayer input = do
     use gMode >>= \case
         Free -> do
             current <- use $ gBoardState . bsPosition
             let newPos = movePlayer' input current
             gBoardState . bsPosition .= newPos
-            return ()
         Fixed -> return ()
   where
-    movePlayer' U TL = TL
-    movePlayer' U TM = TM
-    movePlayer' U TR = TR
-    movePlayer' U ML = TL
-    movePlayer' U MM = TM
-    movePlayer' U MR = TR
-    movePlayer' U BL = ML
-    movePlayer' U BM = MM
-    movePlayer' U BR = MR
+    movePlayer' KUp (Position T h) = Position T h
+    movePlayer' KUp (Position v h) = Position (pred v) h
 
-    movePlayer' R TL = TM
-    movePlayer' R TM = TR
-    movePlayer' R TR = TR
-    movePlayer' R ML = MM
-    movePlayer' R MM = MR
-    movePlayer' R MR = MR
-    movePlayer' R BL = BM
-    movePlayer' R BM = BR
-    movePlayer' R BR = BR
+    movePlayer' KRight (Position v R) = Position v R
+    movePlayer' KRight (Position v h) = Position v (succ h)
 
-    movePlayer' D TL = ML
-    movePlayer' D TM = MM
-    movePlayer' D TR = MR
-    movePlayer' D ML = BL
-    movePlayer' D MM = BM
-    movePlayer' D MR = BR
-    movePlayer' D BL = BL
-    movePlayer' D BM = BM
-    movePlayer' D BR = BR
+    movePlayer' KDown (Position B h) = Position B h
+    movePlayer' KDown (Position v h) = Position (succ v) h
 
-    movePlayer' L TL = TL
-    movePlayer' L TM = TL
-    movePlayer' L TR = TM
-    movePlayer' L ML = ML
-    movePlayer' L MM = ML
-    movePlayer' L MR = MM
-    movePlayer' L BL = BL
-    movePlayer' L BM = BL
-    movePlayer' L BR = BM
-
-    movePlayer' _ _ = undefined
+    movePlayer' KLeft (Position v L) = Position v L
+    movePlayer' KLeft (Position v h) = Position v (pred h)

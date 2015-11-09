@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 module Draw where
 
-import Data.Monoid
 import Lens.Simple
 import UI.NCurses
 
@@ -41,33 +40,37 @@ drawCrosses = do
     drawCross (1 + 8 + 8, 1 + 8) 1
     drawCross (1 + 8 + 8, 1 + 8 + 8) 1
 
-drawPlayer :: GameState -> Update ()
-drawPlayer gs =
+
+drawMessages :: GameState -> Update ()
+drawMessages gs = do
+
+    moveCursor 0 2
+    clearLine
+    drawString "Mode: "
+    drawString (show $ gs ^. gMode)
+
+    moveCursor 1 2
+    drawString "Player: "
+    drawString (show $ gs ^. gPlayer)
+
+drawCursor :: GameState -> Update ()
+drawCursor gs =
     let outer_s = gs ^. gBoardState
-        inner_l = case outer_s ^. bsPosition of
-                    TL -> bsTL
-                    TM -> bsTM
-                    TR -> bsTR
-                    ML -> bsML
-                    MM -> bsMM
-                    MR -> bsMR
-                    BL -> bsBL
-                    BM -> bsBM
-                    BR -> bsBR
-        inner_p = getPos 1 $ outer_s ^. inner_l . bsPosition
+        inner_l = positionToLens $ outer_s ^. bsPosition
+        inner_p = getPos 2 $ outer_s ^. inner_l . bsPosition
         outer_p = getPos 8 $ outer_s ^. bsPosition
     in
-    uncurry moveCursor $ outer_p `plusTuple` inner_p
+    uncurry moveCursor $ outer_p `plusTuple` (1, 1) `plusTuple` inner_p
   where
-    getPos _ TL = (0, 0)
-    getPos n TM = (0, n)
-    getPos n TR = (0, n + n)
-    getPos n ML = (n, 0)
-    getPos n MM = (n, n)
-    getPos n MR = (n, n + n)
-    getPos n BL = (n + n, 0)
-    getPos n BM = (n + n, n)
-    getPos n BR = (n + n, n + n)
+    getPos _ (Position T L) = (0, 0)
+    getPos n (Position T C) = (0, n)
+    getPos n (Position T R) = (0, n + n)
+    getPos n (Position M L) = (n, 0)
+    getPos n (Position M C) = (n, n)
+    getPos n (Position M R) = (n, n + n)
+    getPos n (Position B L) = (n + n, 0)
+    getPos n (Position B C) = (n + n, n)
+    getPos n (Position B R) = (n + n, n + n)
 
 plusTuple :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
 plusTuple (a, b) (a', b') = (a + a', b + b')
