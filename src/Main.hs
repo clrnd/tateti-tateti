@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, NoMonomorphismRestriction #-}
 module Main where
 
 import Control.Monad.Trans
@@ -39,13 +39,36 @@ mainLoop :: Window -> Window -> Game ()
 mainLoop w1 w2 = do
     gs <- get
     lift $ updateWindow w2 $ drawMessages gs
+    lift $ updateWindow w1 $ drawMarks gs
     lift $ updateWindow w1 $ drawCursor gs
 
     lift $ render
 
     parseInput w1 >>= \case
         Movement m -> movePlayer m
-        Select -> actionPlayer
+        Select -> use gMode >>= \case
+            Free -> gMode .= Fixed
+            Fixed -> actionPlayer >>= \case
+                -- illegal action, do noting
+                Nothing -> return ()
+
+                -- legal action, `p` is where they played
+                Just next_p -> do
+                    let inner_l = positionToLens next_p
+
+                    -- switch players
+                    gPlayer %= \x -> if x == X then O else X
+
+                    -- calculate winners
+                    calcWinners next_p
+
+                    -- move
+                    gBoardState . bsPosition .= next_p
+
+                    -- fix to next board, if not closed
+                    use (gBoardState . inner_l . bsWinner) >>= \case
+                        Nothing -> return ()
+                        Just _ -> gMode .= Free
         Quit -> gQuit .= True
 
     if gs ^. gQuit
@@ -53,21 +76,27 @@ mainLoop w1 w2 = do
         else mainLoop w1 w2
 
 
-actionPlayer :: Game ()
+actionPlayer :: Game (Maybe BoardPosition)
 actionPlayer = do
-    use gMode >>= \case
-        Free -> gMode .= Fixed
-        Fixed -> do
-            pl <- use gPlayer
+    pl <- use gPlayer
 
-            -- check empty space
-            pos <- use $ gBoardState . bsPosition
+    -- check empty space
+    pos <- use (gBoardState . bsPosition)
+    let inner_l = positionToLens pos
 
-            pos' <- use $ gBoardState . (positionToLens pos) . bsPosition
+    zoom (gBoardState . inner_l) $ do
 
-            use (gBoardState . (positionToLens pos) . (positionToLens pos')) >>= \case
-                Nothing -> gBoardState . (positionToLens pos) . (positionToLens pos') .= Just pl
-                Just _ -> return ()
+        pos' <- use bsPosition
+        let inner_l' = positionToLens pos'
+
+        use inner_l' >>= \case
+            -- the spot is already occupied
+            Just _ -> return Nothing
+
+            -- the spot is free
+            Nothing -> do
+                inner_l' .= Just pl
+                return $ Just pos'
 
 
 parseInput :: Window -> Game Input
@@ -91,10 +120,15 @@ movePlayer :: Movement -> Game ()
 movePlayer input = do
     use gMode >>= \case
         Free -> do
-            current <- use $ gBoardState . bsPosition
-            let newPos = movePlayer' input current
-            gBoardState . bsPosition .= newPos
-        Fixed -> return ()
+            p <- use (gBoardState . bsPosition)
+            let new_p = movePlayer' input p
+            gBoardState . bsPosition .= new_p
+        Fixed -> do
+            p <- use (gBoardState . bsPosition)
+            let inner_l = positionToLens p
+            p' <- use (gBoardState . inner_l . bsPosition)
+            let new_p = movePlayer' input p'
+            gBoardState . inner_l . bsPosition .= new_p
   where
     movePlayer' KUp (Position T h) = Position T h
     movePlayer' KUp (Position v h) = Position (pred v) h
@@ -107,3 +141,13 @@ movePlayer input = do
 
     movePlayer' KLeft (Position v L) = Position v L
     movePlayer' KLeft (Position v h) = Position v (pred h)
+
+
+calcWinners :: BoardPosition -> Game ()
+calcWinners next_p = do
+    p <- use (gBoardState . bsPosition)
+    zoom (gBoardState . positionToLens p) $ do
+        p' <- use bsPosition
+        use (positionToLens p') >>= \case
+            Just X -> bsWinner .= Just (Player X)
+            _ -> return ()

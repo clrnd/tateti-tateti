@@ -1,6 +1,7 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, NoMonomorphismRestriction #-}
 module Draw where
 
+import Control.Monad
 import Lens.Simple
 import UI.NCurses
 
@@ -53,14 +54,37 @@ drawMessages gs = do
     drawString "Player: "
     drawString (show $ gs ^. gPlayer)
 
+
 drawCursor :: GameState -> Update ()
 drawCursor gs =
     let outer_s = gs ^. gBoardState
+        p = outer_s ^. bsPosition
         inner_l = positionToLens $ outer_s ^. bsPosition
-        inner_p = getPos 2 $ outer_s ^. inner_l . bsPosition
-        outer_p = getPos 8 $ outer_s ^. bsPosition
+        p' = outer_s ^. inner_l . bsPosition
     in
-    uncurry moveCursor $ outer_p `plusTuple` (1, 1) `plusTuple` inner_p
+    uncurry moveCursor $ positionToCoordinates p p'
+
+
+drawMarks :: GameState -> Update ()
+drawMarks gs = do
+    let poss = [Position y x | y <- [T .. B], x <- [L .. R]]
+    forM_ poss $ \p -> do
+        let inner_l = positionToLens p
+        let poss' = [Position y x | y <- [T .. B], x <- [L .. R]]
+        forM_ poss' $ \p' -> do
+            let m_p = gs ^. gBoardState . inner_l . positionToLens p'
+            case m_p of
+                Nothing -> return ()
+                Just player -> do
+                    uncurry moveCursor $ positionToCoordinates p p'
+                    drawString $ show player
+
+
+positionToCoordinates ::BoardPosition -> BoardPosition -> (Integer, Integer)
+positionToCoordinates outer_p inner_p =
+    (getPos 8 outer_p) `plusTuple`
+    (1, 1) `plusTuple`
+    (getPos 2 inner_p)
   where
     getPos _ (Position T L) = (0, 0)
     getPos n (Position T C) = (0, n)
@@ -71,6 +95,7 @@ drawCursor gs =
     getPos n (Position B L) = (n + n, 0)
     getPos n (Position B C) = (n + n, n)
     getPos n (Position B R) = (n + n, n + n)
+
 
 plusTuple :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
 plusTuple (a, b) (a', b') = (a + a', b + b')
