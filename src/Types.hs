@@ -1,10 +1,11 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Types where
 
-import UI.NCurses
-import Lens.Simple
 import Control.Monad.State.Strict
+import Data.Array
+import Lens.Simple
+import UI.NCurses
 
 
 type Game a = StateT GameState Curses a
@@ -24,17 +25,14 @@ data Input = Movement Movement
 
 data Mode = Free | Fixed deriving Show
 
-type BoardPosition = Position Vertical Horizontal
-
-data Position a b = Position a b deriving Show
-data Vertical = T | M | B deriving (Show, Enum)
-data Horizontal = L | C | R deriving (Show, Enum)
+data Position = Position Vertical Horizontal
+              deriving (Show, Eq, Ord, Ix)
+data Vertical = T | M | B deriving (Show, Enum, Eq, Ord, Ix)
+data Horizontal = L | C | R deriving (Show, Enum, Eq, Ord, Ix)
 
 data BoardState t = BoardState
-    { _bsTL :: t , _bsTC :: t , _bsTR :: t
-    , _bsML :: t , _bsMC :: t , _bsMR :: t
-    , _bsBL :: t , _bsBC :: t , _bsBR :: t
-    , _bsPosition :: BoardPosition
+    { _bsCells :: Array Position t
+    , _bsPosition :: Position
     , _bsWinner :: Maybe Winner
     } deriving Show
 
@@ -51,20 +49,14 @@ $(makeLenses ''BoardState)
 
 defaultBoard :: a -> BoardState a
 defaultBoard a = BoardState
-    { _bsTL=a , _bsTC=a , _bsTR=a
-    , _bsML=a , _bsMC=a , _bsMR=a
-    , _bsBL=a , _bsBC=a , _bsBR=a
+    { _bsCells=listArray (Position T L, Position B R) (repeat a)
     , _bsPosition=Position M C
     , _bsWinner=Nothing }
 
 
-positionToLens p = case p of
-    Position T L -> bsTL
-    Position T C -> bsTC
-    Position T R -> bsTR
-    Position M L -> bsML
-    Position M C -> bsMC
-    Position M R -> bsMR
-    Position B L -> bsBL
-    Position B C -> bsBC
-    Position B R -> bsBR
+-- | Lens into an array
+ax :: Ix i => i -> Lens (Array i a) (Array i a) a a
+ax i = lens getter setter
+  where
+    getter = (! i)
+    setter = (\arr v -> arr // [(i, v)])

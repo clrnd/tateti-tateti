@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, NoMonomorphismRestriction #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Control.Monad.Trans
@@ -54,7 +54,6 @@ mainLoop w1 w2 = do
 
                 -- legal action, `p` is where they played
                 Just next_p -> do
-                    let inner_l = positionToLens next_p
 
                     -- switch players
                     gPlayer %= \x -> if x == X then O else X
@@ -66,7 +65,7 @@ mainLoop w1 w2 = do
                     gBoardState . bsPosition .= next_p
 
                     -- fix to next board, if not closed
-                    use (gBoardState . inner_l . bsWinner) >>= \case
+                    use (gBoardState . bsCells . ax next_p . bsWinner) >>= \case
                         Nothing -> return ()
                         Just _ -> gMode .= Free
         Quit -> gQuit .= True
@@ -76,26 +75,24 @@ mainLoop w1 w2 = do
         else mainLoop w1 w2
 
 
-actionPlayer :: Game (Maybe BoardPosition)
+actionPlayer :: Game (Maybe Position)
 actionPlayer = do
     pl <- use gPlayer
 
     -- check empty space
     pos <- use (gBoardState . bsPosition)
-    let inner_l = positionToLens pos
 
-    zoom (gBoardState . inner_l) $ do
+    zoom (gBoardState . bsCells . ax pos) $ do
 
         pos' <- use bsPosition
-        let inner_l' = positionToLens pos'
 
-        use inner_l' >>= \case
+        use (bsCells . ax pos') >>= \case
             -- the spot is already occupied
             Just _ -> return Nothing
 
             -- the spot is free
             Nothing -> do
-                inner_l' .= Just pl
+                bsCells . ax pos' .= Just pl
                 return $ Just pos'
 
 
@@ -125,10 +122,9 @@ movePlayer input = do
             gBoardState . bsPosition .= new_p
         Fixed -> do
             p <- use (gBoardState . bsPosition)
-            let inner_l = positionToLens p
-            p' <- use (gBoardState . inner_l . bsPosition)
+            p' <- use (gBoardState . bsCells . ax p . bsPosition)
             let new_p = movePlayer' input p'
-            gBoardState . inner_l . bsPosition .= new_p
+            gBoardState . bsCells . ax p . bsPosition .= new_p
   where
     movePlayer' KUp (Position T h) = Position T h
     movePlayer' KUp (Position v h) = Position (pred v) h
@@ -143,11 +139,11 @@ movePlayer input = do
     movePlayer' KLeft (Position v h) = Position v (pred h)
 
 
-calcWinners :: BoardPosition -> Game ()
+calcWinners :: Position -> Game ()
 calcWinners next_p = do
     p <- use (gBoardState . bsPosition)
-    zoom (gBoardState . positionToLens p) $ do
+    zoom (gBoardState . bsCells . ax p) $ do
         p' <- use bsPosition
-        use (positionToLens p') >>= \case
+        use (bsCells . ax p') >>= \case
             Just X -> bsWinner .= Just (Player X)
             _ -> return ()

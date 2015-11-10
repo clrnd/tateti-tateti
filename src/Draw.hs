@@ -1,7 +1,8 @@
-{-# LANGUAGE LambdaCase, NoMonomorphismRestriction #-}
+{-# LANGUAGE LambdaCase #-}
 module Draw where
 
 import Control.Monad
+import Data.Array
 import Lens.Simple
 import UI.NCurses
 
@@ -57,30 +58,27 @@ drawMessages gs = do
 
 drawCursor :: GameState -> Update ()
 drawCursor gs =
-    let outer_s = gs ^. gBoardState
-        p = outer_s ^. bsPosition
-        inner_l = positionToLens $ outer_s ^. bsPosition
-        p' = outer_s ^. inner_l . bsPosition
+    let p = gs ^. gBoardState . bsPosition
+        p' = gs ^. gBoardState . bsCells . ax p . bsPosition
     in
     uncurry moveCursor $ positionToCoordinates p p'
 
 
 drawMarks :: GameState -> Update ()
-drawMarks gs = do
-    let poss = [Position y x | y <- [T .. B], x <- [L .. R]]
-    forM_ poss $ \p -> do
-        let inner_l = positionToLens p
-        let poss' = [Position y x | y <- [T .. B], x <- [L .. R]]
-        forM_ poss' $ \p' -> do
-            let m_p = gs ^. gBoardState . inner_l . positionToLens p'
-            case m_p of
+drawMarks gs =
+    let poss = range (Position T L, Position B R)
+    in forM_ poss $ \p ->
+        let poss' = range (Position T L, Position B R)
+        in forM_ poss' $ \p' ->
+            let m_p = gs ^. gBoardState . bsCells . ax p . bsCells . ax p'
+            in case m_p of
                 Nothing -> return ()
                 Just player -> do
                     uncurry moveCursor $ positionToCoordinates p p'
                     drawString $ show player
 
 
-positionToCoordinates ::BoardPosition -> BoardPosition -> (Integer, Integer)
+positionToCoordinates ::Position -> Position -> (Integer, Integer)
 positionToCoordinates outer_p inner_p =
     (getPos 8 outer_p) `plusTuple`
     (1, 1) `plusTuple`
