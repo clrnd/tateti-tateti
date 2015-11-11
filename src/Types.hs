@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Types where
 
@@ -45,18 +45,3 @@ data GameState = GameState
 
 $(makeLenses ''GameState)
 $(makeLenses ''BoardState)
-
-
-defaultBoard :: a -> BoardState a
-defaultBoard a = BoardState
-    { _bsCells=listArray (Position T L, Position B R) (repeat a)
-    , _bsPosition=Position M C
-    , _bsWinner=Nothing }
-
-
--- | Lens into an array
-ax :: Ix i => i -> Lens (Array i a) (Array i a) a a
-ax i = lens getter setter
-  where
-    getter = (! i)
-    setter = (\arr v -> arr // [(i, v)])

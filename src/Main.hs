@@ -8,6 +8,7 @@ import UI.NCurses
 
 import Types
 import Draw
+import Util
 
 
 main :: IO ()
@@ -47,25 +48,33 @@ mainLoop w1 w2 = do
     parseInput w1 >>= \case
         Movement m -> movePlayer m
         Select -> use gMode >>= \case
-            Free -> gMode .= Fixed
+            Free -> do
+                p <- use (gBoardState . bsPosition)
+                use (gBoardState . bsAx p . bsWinner) >>= \case
+                    -- board is already closed, do nothing
+                    Just _ -> return ()
+                    -- board is open, enter
+                    Nothing -> gMode .= Fixed
             Fixed -> actionPlayer >>= \case
                 -- illegal action, do noting
                 Nothing -> return ()
 
-                -- legal action, `p` is where they played
-                Just next_p -> do
+                -- legal action, `played_p` is where they played
+                Just played_p -> do
+
+                    -- calculate winners
+                    p <- use (gBoardState . bsPosition)
+                    gBoardState . bsAx p . bsWinner <~ calcWinners played_p
 
                     -- switch players
                     gPlayer %= \x -> if x == X then O else X
 
-                    -- calculate winners
-                    calcWinners next_p
+                    -- move to next board
+                    gBoardState . bsPosition .= played_p
+                    p' <- use (gBoardState . bsPosition)
 
-                    -- move
-                    gBoardState . bsPosition .= next_p
-
-                    -- fix to next board, if not closed
-                    use (gBoardState . bsCells . ax next_p . bsWinner) >>= \case
+                    -- enter free mode if closed
+                    use (gBoardState . bsAx p' . bsWinner) >>= \case
                         Nothing -> return ()
                         Just _ -> gMode .= Free
         Quit -> gQuit .= True
@@ -75,6 +84,7 @@ mainLoop w1 w2 = do
         else mainLoop w1 w2
 
 
+-- | Acts on a user marking a cell, on success returns which position.
 actionPlayer :: Game (Maybe Position)
 actionPlayer = do
     pl <- use gPlayer
@@ -82,17 +92,17 @@ actionPlayer = do
     -- check empty space
     pos <- use (gBoardState . bsPosition)
 
-    zoom (gBoardState . bsCells . ax pos) $ do
+    zoom (gBoardState . bsAx pos) $ do
 
         pos' <- use bsPosition
 
-        use (bsCells . ax pos') >>= \case
+        use (bsAx pos') >>= \case
             -- the spot is already occupied
             Just _ -> return Nothing
 
             -- the spot is free
             Nothing -> do
-                bsCells . ax pos' .= Just pl
+                bsAx pos' .= Just pl
                 return $ Just pos'
 
 
@@ -122,9 +132,9 @@ movePlayer input = do
             gBoardState . bsPosition .= new_p
         Fixed -> do
             p <- use (gBoardState . bsPosition)
-            p' <- use (gBoardState . bsCells . ax p . bsPosition)
+            p' <- use (gBoardState . bsAx p . bsPosition)
             let new_p = movePlayer' input p'
-            gBoardState . bsCells . ax p . bsPosition .= new_p
+            gBoardState . bsAx p . bsPosition .= new_p
   where
     movePlayer' KUp (Position T h) = Position T h
     movePlayer' KUp (Position v h) = Position (pred v) h
@@ -139,11 +149,33 @@ movePlayer input = do
     movePlayer' KLeft (Position v h) = Position v (pred h)
 
 
-calcWinners :: Position -> Game ()
-calcWinners next_p = do
+calcWinners :: Position -> Game (Maybe Winner)
+calcWinners played_p = do
+    pl <- use gPlayer
     p <- use (gBoardState . bsPosition)
-    zoom (gBoardState . bsCells . ax p) $ do
-        p' <- use bsPosition
-        use (bsCells . ax p') >>= \case
-            Just X -> bsWinner .= Just (Player X)
-            _ -> return ()
+    cells <- use (gBoardState . bsAx p . bsCells)
+    return $ calcWinners' pl cells
+  where
+    calcWinners' pl cells =
+        let Position v h = played_p
+            w_v = checkVertical v
+            w_h = checkHorizontal h
+            w_d = if isDiagonal played_p
+                    then checkDiagonal
+                    else False
+        in
+        if or [w_h, w_v, w_d]
+            then Just (Player pl)
+            else Nothing
+      where
+        check = all (\p -> cells ^. ax p == Just pl)
+        checkDiagonal =
+            let directions = [ [ Position T L
+                               , Position M C
+                               , Position B R ]
+                             , [ Position T R
+                               , Position M C
+                               , Position B L ] ]
+            in any check directions
+        checkVertical v = check [ Position v x | x <- [L .. R] ]
+        checkHorizontal h = check [ Position y h | y <- [T .. B] ]

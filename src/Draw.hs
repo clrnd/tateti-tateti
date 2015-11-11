@@ -7,6 +7,7 @@ import Lens.Simple
 import UI.NCurses
 
 import Types
+import Util
 
 
 drawCross :: (Integer, Integer) -> Integer -> Update ()
@@ -93,7 +94,3 @@ positionToCoordinates outer_p inner_p =
     getPos n (Position B L) = (n + n, 0)
     getPos n (Position B C) = (n + n, n)
     getPos n (Position B R) = (n + n, n + n)
-
-
-plusTuple :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
-plusTuple (a, b) (a', b') = (a + a', b + b')
