@@ -4,6 +4,7 @@ module Main where
 import Control.Monad.Trans
 import Control.Monad.State.Strict
 import Data.Array
+import Data.Maybe
 import Lens.Simple
 import UI.NCurses
 
@@ -161,6 +162,7 @@ calcWinners played_p = do
   where
     calcWinners' pl cells =
         let Position v h = played_p
+            draw = checkDraw
             w_v = checkVertical v
             w_h = checkHorizontal h
             w_d = if isDiagonal played_p
@@ -169,9 +171,11 @@ calcWinners played_p = do
         in
         if or [w_h, w_v, w_d]
             then Just (Player pl)
-            else Nothing
+            else if draw
+                then Just Draw
+                else Nothing
       where
-        check = all (\p -> cells ^. ax p == Just pl)
+        check cond = all (\p -> cond (cells ^. ax p))
         checkDiagonal =
             let directions = [ [ Position T L
                                , Position M C
@@ -179,13 +183,30 @@ calcWinners played_p = do
                              , [ Position T R
                                , Position M C
                                , Position B L ] ]
-            in any check directions
-        checkVertical v = check [ Position v x | x <- [L .. R] ]
-        checkHorizontal h = check [ Position y h | y <- [T .. B] ]
+            in any (check (==Just pl)) directions
+        checkVertical v = check (==Just pl) [ Position v x | x <- [L .. R] ]
+        checkHorizontal h = check (==Just pl) [ Position y h | y <- [T .. B] ]
+        checkDraw = check isJust $ range (Position T L, Position B R)
 
 
 getColors :: Game Colors
 getColors = do
-    x <- lift $ newColorID ColorRed ColorDefault 1
-    o <- lift $ newColorID ColorBlue ColorDefault 2
-    return $ array (X, O) [(X, x), (O, o)]
+    colors <- lift $ mapM (\(x, y) -> x y) $ 
+        zip [ newColorID fg bg |
+              fg <- [ColorRed, ColorBlue],
+              bg <- [ColorDefault, ColorRed, ColorBlue, ColorYellow]
+            ] [1..]
+    return $ getColors' colors
+  where
+    getColors' c Nothing (Just X) = c !! 0
+    getColors' c Nothing (Just O) = c !! 4
+    getColors' c Nothing Nothing = c !! 0
+    getColors' c (Just (Player X)) (Just X) = c !! 1
+    getColors' c (Just (Player X)) (Just O) = c !! 5
+    getColors' c (Just (Player X)) Nothing = c !! 1
+    getColors' c (Just (Player O)) (Just X) = c !! 2
+    getColors' c (Just (Player O)) (Just O) = c !! 6
+    getColors' c (Just (Player O)) Nothing = c !! 2
+    getColors' c (Just Draw) (Just X) = c !! 3
+    getColors' c (Just Draw) (Just O) = c !! 7
+    getColors' c (Just Draw) Nothing = c !! 3

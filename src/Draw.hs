@@ -45,16 +45,19 @@ drawCrosses = do
 
 
 drawMessages :: GameState -> Colors -> Update ()
-drawMessages gs _ = do
+drawMessages gs colors = do
 
+    setColor defaultColorID
     moveCursor 0 2
     clearLine
     drawString "Mode: "
     drawString (show $ gs ^. gMode)
 
+    let player = gs ^. gPlayer
     moveCursor 1 2
     drawString "Player: "
-    drawString (show $ gs ^. gPlayer)
+    setColor $ colors Nothing (Just player)
+    drawString (show player)
 
 
 drawCursor :: GameState -> Update ()
@@ -66,18 +69,18 @@ drawCursor gs =
 
 
 drawBoard :: GameState -> Colors -> Update ()
-drawBoard gs colors =
+drawBoard gs colors = do
     let poss = range (Position T L, Position B R)
-    in forM_ poss $ \p ->
+    forM_ poss $ \p -> do
         let poss' = range (Position T L, Position B R)
-        in forM_ poss' $ \p' ->
-            let m_p = gs ^. gBoardState . bsCells . ax p . bsCells . ax p'
-            in case m_p of
-                Nothing -> return ()
-                Just player -> do
-                    uncurry moveCursor $ positionToCoordinates p p'
-                    setColor $ colors ! player
-                    drawString $ show player
+            m_winner = gs ^. gBoardState . bsCells . ax p . bsWinner
+        forM_ poss' $ \p' -> do
+            uncurry moveCursor $ positionToCoordinates p p'
+            let m_p = gs ^. gBoardState . bsAx p . bsAx p'
+            setColor $ colors m_winner m_p
+            case m_p of
+                Nothing -> drawString " "
+                Just player -> drawString $ show player
 
 
 positionToCoordinates :: Position -> Position -> (Integer, Integer)

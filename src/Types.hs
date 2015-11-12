@@ -10,14 +10,14 @@ import UI.NCurses
 
 type Game a = StateT GameState Curses a
 
-type Colors = Array Player ColorID
+type Colors = Maybe Winner -> Maybe Player -> ColorID
 
 data Player = X
             | O
-            deriving (Show, Eq, Ord, Ix)
+            deriving (Show, Eq, Ord)
 data Winner = Player Player
             | Draw
-            deriving Show
+            deriving (Show, Eq, Ord)
 
 data Movement = KUp | KRight | KDown | KLeft
               deriving Show
