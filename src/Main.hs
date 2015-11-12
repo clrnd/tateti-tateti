@@ -3,6 +3,7 @@ module Main where
 
 import Control.Monad.Trans
 import Control.Monad.State.Strict
+import Data.Array
 import Lens.Simple
 import UI.NCurses
 
@@ -26,21 +27,23 @@ main =
         -- message window
         w2 <- lift $ newWindow 3 15 (24 - 2) 24
 
+        colors <- getColors
+
         lift $ updateWindow w1 $ drawCrosses
         lift $ render
 
-        mainLoop w1 w2
+        mainLoop w1 w2 colors
 
         -- cleaning up
         lift $ closeWindow w1
         lift $ closeWindow w2
 
 
-mainLoop :: Window -> Window -> Game ()
-mainLoop w1 w2 = do
+mainLoop :: Window -> Window -> Colors -> Game ()
+mainLoop w1 w2 colors = do
     gs <- get
-    lift $ updateWindow w2 $ drawMessages gs
-    lift $ updateWindow w1 $ drawMarks gs
+    lift $ updateWindow w2 $ drawMessages gs colors
+    lift $ updateWindow w1 $ drawBoard gs colors
     lift $ updateWindow w1 $ drawCursor gs
 
     lift $ render
@@ -81,7 +84,7 @@ mainLoop w1 w2 = do
 
     if gs ^. gQuit
         then return ()
-        else mainLoop w1 w2
+        else mainLoop w1 w2 colors
 
 
 -- | Acts on a user marking a cell, on success returns which position.
@@ -179,3 +182,10 @@ calcWinners played_p = do
             in any check directions
         checkVertical v = check [ Position v x | x <- [L .. R] ]
         checkHorizontal h = check [ Position y h | y <- [T .. B] ]
+
+
+getColors :: Game Colors
+getColors = do
+    x <- lift $ newColorID ColorRed ColorDefault 1
+    o <- lift $ newColorID ColorBlue ColorDefault 2
+    return $ array (X, O) [(X, x), (O, o)]

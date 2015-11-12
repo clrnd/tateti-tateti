@@ -44,8 +44,8 @@ drawCrosses = do
     drawCross (1 + 8 + 8, 1 + 8 + 8) 1
 
 
-drawMessages :: GameState -> Update ()
-drawMessages gs = do
+drawMessages :: GameState -> Colors -> Update ()
+drawMessages gs _ = do
 
     moveCursor 0 2
     clearLine
@@ -65,8 +65,8 @@ drawCursor gs =
     uncurry moveCursor $ positionToCoordinates p p'
 
 
-drawMarks :: GameState -> Update ()
-drawMarks gs =
+drawBoard :: GameState -> Colors -> Update ()
+drawBoard gs colors =
     let poss = range (Position T L, Position B R)
     in forM_ poss $ \p ->
         let poss' = range (Position T L, Position B R)
@@ -76,10 +76,11 @@ drawMarks gs =
                 Nothing -> return ()
                 Just player -> do
                     uncurry moveCursor $ positionToCoordinates p p'
+                    setColor $ colors ! player
                     drawString $ show player
 
 
-positionToCoordinates ::Position -> Position -> (Integer, Integer)
+positionToCoordinates :: Position -> Position -> (Integer, Integer)
 positionToCoordinates outer_p inner_p =
     (getPos 8 outer_p) `plusTuple`
     (1, 1) `plusTuple`

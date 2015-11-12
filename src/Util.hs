@@ -29,6 +29,7 @@ bsAx p = bsCells . ax p
 plusTuple :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
 plusTuple (a, b) (a', b') = (a + a', b + b')
 
+
 isDiagonal :: Position -> Bool
 isDiagonal (Position T L) = True
 isDiagonal (Position T R) = True
