@@ -7,11 +7,12 @@ import Data.Array
 import Data.Maybe
 import Lens.Simple
 import UI.NCurses
+import System.Random
 
+import SelectScreen
 import Types
 import Draw
 import Util
-
 
 main :: IO ()
 main =
@@ -30,7 +31,21 @@ main =
 
         colors <- getColors
 
-        mainLoop w1 w2 colors
+        whoPlaysLoop w1 colors (CPlayer X) >>= \case
+            -- quited
+            Nothing -> return ()
+            -- chose something
+            Just m_choice -> do
+                pl <- case m_choice of
+                    CPlayer pl -> return pl
+                    CRandom -> do
+                        n <- liftIO randomIO :: Game Int
+                        if n < 0
+                            then return X
+                            else return O
+                gPlayer .= pl
+                lift $ updateWindow w1 clear
+                mainLoop w1 w2 colors
 
         -- cleaning up
         lift $ closeWindow w1
@@ -45,7 +60,7 @@ mainLoop w1 w2 colors = do
     lift $ updateWindow w1 $ drawMarks gs colors
     lift $ updateWindow w1 $ drawCursor gs
 
-    lift $ render
+    lift render
 
     parseInput w1 >>= \case
         Movement m -> movePlayer m
@@ -106,23 +121,6 @@ actionPlayer = do
             Nothing -> do
                 bsAx pos' .= Just pl
                 return $ Just pos'
-
-
-parseInput :: Window -> Game Input
-parseInput w = do
-    ev <- lift $ getEvent w Nothing
-    case ev of
-        Just (EventCharacter 'q') -> return Quit
-        Just (EventCharacter 'Q') -> return Quit
-        Just (EventCharacter ' ') -> return Select
-        Just (EventSpecialKey k) ->
-            case k of
-                KeyUpArrow -> return $ Movement KUp
-                KeyRightArrow -> return $ Movement KRight
-                KeyDownArrow -> return $ Movement KDown
-                KeyLeftArrow -> return $ Movement KLeft
-                _ -> parseInput w
-        _ -> parseInput w
 
 
 movePlayer :: Movement -> Game ()

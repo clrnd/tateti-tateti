@@ -1,8 +1,10 @@
 {-# LANGUAGE RankNTypes #-}
 module Util where
 
+import Control.Monad.Trans
 import Data.Array
 import Lens.Simple
+import UI.NCurses
 
 import Types
 
@@ -54,3 +56,20 @@ positionToCoordinates outer_p inner_p =
     getPos n (Position B L) = (n + n, 0)
     getPos n (Position B C) = (n + n, n)
     getPos n (Position B R) = (n + n, n + n)
+
+
+parseInput :: Window -> Game Input
+parseInput w = do
+    ev <- lift $ getEvent w Nothing
+    case ev of
+        Just (EventCharacter 'q') -> return Quit
+        Just (EventCharacter 'Q') -> return Quit
+        Just (EventCharacter ' ') -> return Select
+        Just (EventSpecialKey k) ->
+            case k of
+                KeyUpArrow -> return $ Movement KUp
+                KeyRightArrow -> return $ Movement KRight
+                KeyDownArrow -> return $ Movement KDown
+                KeyLeftArrow -> return $ Movement KLeft
+                _ -> parseInput w
+        _ -> parseInput w

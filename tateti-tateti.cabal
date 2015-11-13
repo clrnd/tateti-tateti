@@ -16,7 +16,9 @@ executable tateti-tateti
   hs-source-dirs:      src
   other-modules:       Types
                      , Draw
-  ghc-options:         -Wall
+                     , SelectScreen
+                     , Util
+  ghc-options:         -Wall -O2
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
@@ -24,3 +26,4 @@ executable tateti-tateti
                      , mtl
                      , lens-simple
                      , array
+                     , random

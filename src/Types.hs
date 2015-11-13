@@ -11,6 +11,8 @@ import UI.NCurses
 -- | Main monad
 type Game a = StateT GameState Curses a
 
+
+-- | Global state
 data GameState = GameState
     { _gPlayer :: Player
     , _gBoardState :: BoardState (BoardState (Maybe Player))
