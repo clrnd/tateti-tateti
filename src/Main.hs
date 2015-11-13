@@ -30,9 +30,6 @@ main =
 
         colors <- getColors
 
-        lift $ updateWindow w1 $ drawCrosses
-        lift $ render
-
         mainLoop w1 w2 colors
 
         -- cleaning up
@@ -43,8 +40,9 @@ main =
 mainLoop :: Window -> Window -> Colors -> Game ()
 mainLoop w1 w2 colors = do
     gs <- get
+    lift $ updateWindow w1 $ drawCrosses gs colors
     lift $ updateWindow w2 $ drawMessages gs colors
-    lift $ updateWindow w1 $ drawBoard gs colors
+    lift $ updateWindow w1 $ drawMarks gs colors
     lift $ updateWindow w1 $ drawCursor gs
 
     lift $ render
@@ -191,22 +189,12 @@ calcWinners played_p = do
 
 getColors :: Game Colors
 getColors = do
-    colors <- lift $ mapM (\(x, y) -> x y) $ 
-        zip [ newColorID fg bg |
-              fg <- [ColorRed, ColorBlue],
-              bg <- [ColorDefault, ColorRed, ColorBlue, ColorYellow]
-            ] [1..]
-    return $ getColors' colors
-  where
-    getColors' c Nothing (Just X) = c !! 0
-    getColors' c Nothing (Just O) = c !! 4
-    getColors' c Nothing Nothing = c !! 0
-    getColors' c (Just (Player X)) (Just X) = c !! 1
-    getColors' c (Just (Player X)) (Just O) = c !! 5
-    getColors' c (Just (Player X)) Nothing = c !! 1
-    getColors' c (Just (Player O)) (Just X) = c !! 2
-    getColors' c (Just (Player O)) (Just O) = c !! 6
-    getColors' c (Just (Player O)) Nothing = c !! 2
-    getColors' c (Just Draw) (Just X) = c !! 3
-    getColors' c (Just Draw) (Just O) = c !! 7
-    getColors' c (Just Draw) Nothing = c !! 3
+    r <- lift $ newColorID ColorRed ColorDefault 1
+    b <- lift $ newColorID ColorBlue ColorDefault 2
+    y <- lift $ newColorID ColorYellow ColorDefault 3
+    g <- lift $ newColorID ColorGreen ColorDefault 4
+    return $  \case
+        Red -> r
+        Blue -> b
+        Yellow -> y
+        Green -> g
