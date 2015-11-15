@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module SelectScreen where
+module OtherScreens where
 
 import Control.Monad.Trans
 import UI.NCurses
@@ -16,7 +16,7 @@ data Choice = CPlayer Player
 
 whoPlaysLoop :: Window -> Colors -> Choice -> Game (Maybe Choice)
 whoPlaysLoop w colors who = do
-    lift $ updateWindow w $ do
+    lift . updateWindow w $ do
         moveCursor 10 4
         drawString "Who should play?"
 
@@ -56,3 +56,20 @@ whoPlaysLoop w colors who = do
     getPos (CPlayer X) = (12, 6)
     getPos (CPlayer O) = (12, 8)
     getPos CRandom = (12, 10)
+
+
+endGameLoop :: Winner -> Window -> Colors -> Game ()
+endGameLoop winner w colors = do
+    lift . updateWindow w $ do
+
+        moveCursor 0 2
+        setColor . colors . color $ winner
+        drawString $ case winner of
+            Player pl -> show pl ++ " wins!"
+            Draw -> "Draw lolz..."
+
+    lift render
+
+    parseInput w >>= \case
+        Quit -> return ()
+        _ -> endGameLoop winner w colors

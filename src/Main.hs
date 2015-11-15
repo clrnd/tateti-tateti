@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts #-}
 module Main where
 
 import Control.Monad.Trans
@@ -9,7 +9,7 @@ import Lens.Simple
 import UI.NCurses
 import System.Random
 
-import SelectScreen
+import OtherScreens
 import Types
 import Draw
 import Util
@@ -45,14 +45,21 @@ main =
                             else return O
                 gPlayer .= pl
                 lift $ updateWindow w1 clear
-                mainLoop w1 w2 colors
+
+                m_winner <- mainLoop w1 w2 colors
+
+                case m_winner of
+                    Nothing -> return ()
+                    Just winner -> do
+                        lift $ updateWindow w2 clear
+                        endGameLoop winner w2 colors
 
         -- cleaning up
         lift $ closeWindow w1
         lift $ closeWindow w2
 
 
-mainLoop :: Window -> Window -> Colors -> Game ()
+mainLoop :: Window -> Window -> Colors -> Game (Maybe Winner)
 mainLoop w1 w2 colors = do
     gs <- get
     lift $ updateWindow w1 $ drawCrosses gs colors
@@ -81,7 +88,9 @@ mainLoop w1 w2 colors = do
 
                     -- calculate winners
                     p <- use (gBoardState . bsPosition)
-                    gBoardState . bsAx p . bsWinner <~ calcWinners played_p
+                    gBoardState . bsAx p . bsWinner <~ innerWinner played_p
+
+                    gBoardState . bsWinner <~ outerWinner p
 
                     -- switch players
                     gPlayer %= \x -> if x == X then O else X
@@ -96,9 +105,24 @@ mainLoop w1 w2 colors = do
                         Just _ -> gMode .= Free
         Quit -> gQuit .= True
 
-    if gs ^. gQuit
-        then return ()
-        else mainLoop w1 w2 colors
+    use gQuit >>= \case
+        True -> return Nothing
+        False -> use (gBoardState . bsWinner) >>= \case
+            Nothing -> mainLoop w1 w2 colors
+            winner -> return winner
+  where
+    innerWinner played_p = do
+        pl <- use gPlayer
+        p <- use (gBoardState . bsPosition)
+        cells <- use (gBoardState . bsAx p . bsCells)
+        return $ calcWinners cells played_p pl (==Just pl) isJust
+
+    outerWinner p = do
+        pl <- use gPlayer
+        cells <- use (gBoardState . bsCells)
+        return $ calcWinners cells p pl
+            (\x -> x ^. bsWinner == Just (Player pl))
+            (\x -> isJust $ x ^. bsWinner)
 
 
 -- | Acts on a user marking a cell, on success returns which position.
@@ -149,40 +173,36 @@ movePlayer input = do
     movePlayer' KLeft (Position v h) = Position v (pred h)
 
 
-calcWinners :: Position -> Game (Maybe Winner)
-calcWinners played_p = do
-    pl <- use gPlayer
-    p <- use (gBoardState . bsPosition)
-    cells <- use (gBoardState . bsAx p . bsCells)
-    return $ calcWinners' pl cells
+calcWinners  :: Array Position a -> Position -> Player
+                -> (a -> Bool) -> (a -> Bool)
+                ->  Maybe Winner
+calcWinners cells played_p pl mark_f has_f =
+    let Position v h = played_p
+        draw = checkDraw
+        w_v = checkVertical v
+        w_h = checkHorizontal h
+        w_d = if isDiagonal played_p
+                then checkDiagonal
+                else False
+    in
+    if or [w_h, w_v, w_d]
+        then Just (Player pl)
+        else if draw
+            then Just Draw
+            else Nothing
   where
-    calcWinners' pl cells =
-        let Position v h = played_p
-            draw = checkDraw
-            w_v = checkVertical v
-            w_h = checkHorizontal h
-            w_d = if isDiagonal played_p
-                    then checkDiagonal
-                    else False
-        in
-        if or [w_h, w_v, w_d]
-            then Just (Player pl)
-            else if draw
-                then Just Draw
-                else Nothing
-      where
-        check cond = all (\p -> cond (cells ^. ax p))
-        checkDiagonal =
-            let directions = [ [ Position T L
-                               , Position M C
-                               , Position B R ]
-                             , [ Position T R
-                               , Position M C
-                               , Position B L ] ]
-            in any (check (==Just pl)) directions
-        checkVertical v = check (==Just pl) [ Position v x | x <- [L .. R] ]
-        checkHorizontal h = check (==Just pl) [ Position y h | y <- [T .. B] ]
-        checkDraw = check isJust $ range (Position T L, Position B R)
+    check cond = all (\p -> cond (cells ^. ax p))
+    checkDiagonal =
+        let directions = [ [ Position T L
+                           , Position M C
+                           , Position B R ]
+                         , [ Position T R
+                           , Position M C
+                           , Position B L ] ]
+        in any (check mark_f) directions
+    checkVertical v = check mark_f [ Position v x | x <- [L .. R] ]
+    checkHorizontal h = check mark_f [ Position y h | y <- [T .. B] ]
+    checkDraw = check has_f $ range (Position T L, Position B R)
 
 
 getColors :: Game Colors

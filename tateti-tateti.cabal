@@ -16,7 +16,7 @@ executable tateti-tateti
   hs-source-dirs:      src
   other-modules:       Types
                      , Draw
-                     , SelectScreen
+                     , OtherScreens
                      , Util
   ghc-options:         -Wall -O2
   main-is:             Main.hs
