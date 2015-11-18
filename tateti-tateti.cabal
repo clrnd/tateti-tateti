@@ -6,7 +6,7 @@ homepage:            http://github.com/alvare/tateti-tateti#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Ezequiel A. Alvarez
-maintainer:          welcometothechango@mgail.com
+maintainer:          welcometothechango@gmail.com
 copyright:           2015 Ezequiel A. Alvarez
 category:            Game
 build-type:          Simple
@@ -14,9 +14,9 @@ cabal-version:       >=1.10
 
 executable tateti-tateti
   hs-source-dirs:      src
-  other-modules:       Types
-                     , Draw
+  other-modules:       Draw
                      , OtherScreens
+                     , Types
                      , Util
   ghc-options:         -Wall -O2
   main-is:             Main.hs
