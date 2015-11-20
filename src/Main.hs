@@ -32,9 +32,9 @@ main =
         colors <- getColors
 
         whoPlaysLoop w1 colors (CPlayer X) >>= \case
-            -- quited
+            -- player quited
             Nothing -> return ()
-            -- chose something
+            -- player chose something
             Just m_choice -> do
                 pl <- case m_choice of
                     CPlayer pl -> return pl
@@ -46,12 +46,19 @@ main =
                 gPlayer .= pl
                 lift $ updateWindow w1 clear
 
+                -- enter main loop and play, returning a winner
                 m_winner <- mainLoop w1 w2 colors
 
                 case m_winner of
+                    -- if no winner, just end
                     Nothing -> return ()
+                    -- otherwise, draw everything,
+                    -- clear messages and display winner
                     Just winner -> do
+                        drawAll w1 w2 colors
+
                         lift $ updateWindow w2 clear
+
                         endGameLoop winner w2 colors
 
         -- cleaning up
@@ -61,13 +68,8 @@ main =
 
 mainLoop :: Window -> Window -> Colors -> Game (Maybe Winner)
 mainLoop w1 w2 colors = do
-    gs <- get
-    lift $ updateWindow w1 $ drawCrosses gs colors
-    lift $ updateWindow w2 $ drawMessages gs colors
-    lift $ updateWindow w1 $ drawMarks gs colors
-    lift $ updateWindow w1 $ drawCursor gs
 
-    lift render
+    drawAll w1 w2 colors
 
     parseInput w1 >>= \case
         Movement m -> movePlayer m
@@ -203,6 +205,18 @@ calcWinners cells played_p pl mark_f has_f =
     checkVertical v = check mark_f [ Position v x | x <- [L .. R] ]
     checkHorizontal h = check mark_f [ Position y h | y <- [T .. B] ]
     checkDraw = check has_f $ range (Position T L, Position B R)
+
+
+drawAll :: Window -> Window -> Colors -> Game ()
+drawAll w1 w2 colors = do
+    gs <- get
+
+    lift $ updateWindow w1 $ drawCrosses gs colors
+    lift $ updateWindow w2 $ drawMessages gs colors
+    lift $ updateWindow w1 $ drawMarks gs colors
+    lift $ updateWindow w1 $ drawCursor gs
+
+    lift render
 
 
 getColors :: Game Colors

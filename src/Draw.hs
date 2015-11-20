@@ -23,25 +23,23 @@ drawCrosses gs colors = do
         color_ids = map (winner >=> return . colors . color) poss
 
     mapM_ (uncurry $ drawCross 1) $ zip color_ids coords
+  where
+    drawCross cellsize m_cid (y, x) = do
+        case m_cid of
+            Just cid -> setColor cid
+            Nothing -> setColor defaultColorID
 
+        moveCursor (cellsize + y) x
+        drawLineH (Just glyphLineH) (cellsize * 3 + 2)
+        moveCursor (cellsize + y + cellsize + 1) x
+        drawLineH (Just glyphLineH) (cellsize * 3 + 2)
 
-drawCross :: Integer -> Maybe ColorID -> (Integer, Integer) -> Update ()
-drawCross cellsize m_cid (y, x) = do
-    case m_cid of
-        Just cid -> setColor cid
-        Nothing -> setColor defaultColorID
+        moveCursor y (cellsize + x)
+        drawLineV (Just glyphLineV) (cellsize * 3 + 2)
+        moveCursor y (cellsize + x + cellsize + 1)
+        drawLineV (Just glyphLineV) (cellsize * 3 + 2)
 
-    moveCursor (cellsize + y) x
-    drawLineH (Just glyphLineH) (cellsize * 3 + 2)
-    moveCursor (cellsize + y + cellsize + 1) x
-    drawLineH (Just glyphLineH) (cellsize * 3 + 2)
-
-    moveCursor y (cellsize + x)
-    drawLineV (Just glyphLineV) (cellsize * 3 + 2)
-    moveCursor y (cellsize + x + cellsize + 1)
-    drawLineV (Just glyphLineV) (cellsize * 3 + 2)
-
-    setColor defaultColorID
+        setColor defaultColorID
 
 
 drawMessages :: GameState -> Colors -> Update ()
