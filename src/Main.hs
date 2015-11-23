@@ -99,10 +99,9 @@ mainLoop w1 w2 colors = do
 
                     -- move to next board
                     gBoardState . bsPosition .= played_p
-                    p' <- use (gBoardState . bsPosition)
 
                     -- enter free mode if closed
-                    use (gBoardState . bsAx p' . bsWinner) >>= \case
+                    use (gBoardState . bsAx played_p . bsWinner) >>= \case
                         Nothing -> return ()
                         Just _ -> gMode .= Free
         Quit -> gQuit .= True
