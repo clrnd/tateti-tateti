@@ -1,5 +1,5 @@
 name:                tateti-tateti
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Meta tic-tac-toe ncurses game.
 description:         Please see README.md
 homepage:            http://github.com/alvare/tateti-tateti#readme
